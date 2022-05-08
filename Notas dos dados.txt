@@ -1,0 +1,6 @@
+Missing Values -> Best results with lr_type=adaptive, learning rate=0.5 and 300 max iter, with accuracy=0.7222222222222222 - LIMPO.
+               -> Best results with lr_type=constant, learning rate=0.1 and 100 max iter, with accuracy=0.6756756756756757 - 0.
+               -> Best results with lr_type=constant, learning rate=0.1 and 5000 max iter, with accuracy=0.7297297297297297 - Freq.
+               ->
+
+
