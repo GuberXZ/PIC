@@ -251,7 +251,7 @@ def dummify(df, vars_to_dummify):
     final_df = concat([df[other_vars], dummy], axis=1)
     return final_df
 
-def get_variable_types(df: DataFrame) -> dict:
+def get_variable_type(df: DataFrame) -> dict:
     variable_types: dict = {
         'Numeric': [],
         'Binary': [],
@@ -274,8 +274,42 @@ def get_variable_types(df: DataFrame) -> dict:
             variable_types['Symbolic'].append(c)
     return variable_types
 
+def get_variable_types(df):
+    NR_SYMBOLS = 10
+    variable_types = {'binary': [], 'numeric': [], 'date': [], 'symbolic': []}
+    for c in df.columns:
+        mv = df[c].isna().sum()
+        uniques = df[c].unique()
+        if mv == 0:
+            if len(uniques) == 2:
+                variable_types['binary'].append(c)
+                df[c].astype('bool')
+            elif df[c].dtype == 'datetime64':
+                variable_types['date'].append(c)
+            elif len(uniques) < NR_SYMBOLS:
+                df[c].astype('category')
+                variable_types['symbolic'].append(c)
+            else:
+                variable_types['numeric'].append(c)
+        else:
+            uniques = [v for v in uniques if not np.isnan(v)]
+            values = [v for v in uniques if isinstance(v,str)]
+            if len(uniques) == 2:
+                variable_types['binary'].append(c)
+            elif len(values) == len(uniques):
+                df[c].astype('category')
+                variable_types['symbolic'].append(c)
+            else:
+                values = [v for v in uniques if isinstance(v, datetime)]
+                if len(values) == len(uniques):
+                    variable_types['date'].append(c)
+                else:
+                    variable_types['numeric'].append(c)
+    return variable_types
+
+
 def plot_overfitting_study(xvalues, prd_trn, prd_tst, name, xlabel, ylabel):
     evals = {'Train': prd_trn, 'Test': prd_tst}
     plt.figure()
     multiple_line_chart(xvalues, evals, ax = None, title=f'Overfitting {name}', xlabel=xlabel, ylabel=ylabel, percentage=True)
-    plt.savefig('images/overfitting_{name}.png')
+    #plt.savefig(f'images/overfitting_{name}.png')
