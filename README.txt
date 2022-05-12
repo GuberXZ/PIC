@@ -23,3 +23,7 @@ Classification -> NaiveBayes - tem maior accuracy para o estimador multinomial (
                -> Random Trees - Best results with depth=10, 1.00 features and 200 estimators, with accuracy=0.90 -> overfitting.
                -> Neural Networks - Best results with lr_type=constant, learning rate=0.1 and 100 max iter, with accuracy=0.7755102040816326.
                -> Gradient Boosting - Best results with depth=10, learning rate=0.50 and 25 estimators, with accuracy=0.86 -> overfitting.
+
+
+
+teste 123
