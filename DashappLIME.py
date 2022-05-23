@@ -16,7 +16,7 @@ from dash.dependencies import Input, Output, State
 
 # For plotting risk indicator and for creating waterfall plot
 import plotly.graph_objs as go
-import shap
+import lime.lime_tabular
 
 # To import joblib file model objects
 import joblib
@@ -34,8 +34,20 @@ import joblib
 
 #Random Forest and Database Load
 file = './zDatabase/XAI - Limpo_dummified_minmax_smote.csv'
+fileTrain = './zDatabase/XAI - Limpo_dummified_minmax_smote_train.csv'
 rfb = joblib.load('./zDatabase/randomforests.joblib')
 data = pd.read_csv(file,index_col='surgycal margin',na_values='',sep=',', decimal='.') 
+train: pd.DataFrame = pd.read_csv(fileTrain)
+trnY: np.ndarray = train.pop('surgycal margin').values
+trnX: np.ndarray = train.values
+labels = pd.unique(trnY)
+labels.sort()
+
+col = ['Age.at.MRI','Prostate.volume','PSA.value.at.MRI','Index.lesion.size',
+       'Capsular.contact.lenght_TLC','Smooth.capsular.bulging','Capsular.disruption','Unsharp.margin',
+       'Irregular.contour','Black.estrition.periprostatic.fat','Retoprostatic.angle.obliteration',
+       'Measurable.ECE','ECE.in.prostatectomy.specimen_gold.standard','Gleason.score','regra',
+       'Index.lesion.PIRADS.V2_3','Index.lesion.PIRADS.V2_4','Index.lesion.PIRADS.V2_5'] #'surgycal margin'
 
 # Start Dashboard
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -214,8 +226,8 @@ app.layout = html.Div([
                     html.Label('ECE in prostatectomy: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'Normal', 'value': '0'},
-                            {'label': 'Not normal', 'value': '1'}
+                            {'label': 'No', 'value': '0'},
+                            {'label': 'Yes', 'value': '1'}
                         ],
                         value='0',
                         id='ECE_in_prostatectomy'
@@ -412,27 +424,27 @@ def predict_hd_summary(data_patient):
 
     # read in data and predict likelihood of heart disease
     x_new = pd.read_json(data_patient)
-    y_val = rfb.predict_proba(x_new)[:, 1]*100
+    y_val = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
     text_val = str(np.round(y_val[0], 1)) + "%"
 
-    # assign a risk group
-    if y_val/100 <= 0.275685:
-        risk_grp = 'low risk'
-    elif y_val/100 <= 0.795583:
-        risk_grp = 'medium risk'
-    else:
-        risk_grp = 'high risk'
+    # # assign a risk group
+    # if y_val/100 <= 0.275685:
+    #     risk_grp = 'low risk'
+    # elif y_val/100 <= 0.795583:
+    #     risk_grp = 'medium risk'
+    # else:
+    #     risk_grp = 'high risk'
 
-    # assign an action related to the risk group
-    rg_actions = {'low risk': ['Discuss with patient any single large risk factors they may have, and otherwise '
-                               'continue supporting healthy lifestyle habits. Follow-up in 12 months'],
-                  'medium risk': ['Discuss lifestyle with patient and identify changes to reduce risk. '
-                                  'Schedule follow-up with patient in 3 months on how changes are progressing. '
-                                  'Recommend performing simple tests to assess positive impact of changes.'],
-                  'high risk': ['Immediate follow-up with patient to discuss next steps including additional '
-                                'follow-up tests, lifestyle changes and medications.']}
+    # # assign an action related to the risk group
+    # rg_actions = {'low risk': ['Discuss with patient any single large risk factors they may have, and otherwise '
+    #                            'continue supporting healthy lifestyle habits. Follow-up in 12 months'],
+    #               'medium risk': ['Discuss lifestyle with patient and identify changes to reduce risk. '
+    #                               'Schedule follow-up with patient in 3 months on how changes are progressing. '
+    #                               'Recommend performing simple tests to assess positive impact of changes.'],
+    #               'high risk': ['Immediate follow-up with patient to discuss next steps including additional '
+    #                             'follow-up tests, lifestyle changes and medications.']}
 
-    next_action = rg_actions[risk_grp][0]
+    # next_action = rg_actions[risk_grp][0]
 
     # create a single bar plot showing likelihood of heart disease
     fig1 = go.Figure()
@@ -473,46 +485,17 @@ def predict_hd_summary(data_patient):
         ),
         fillcolor="orange"
     )
-    fig1.add_shape(
-        type="rect",
-        x0=0.795584 * 100,
-        y0=bot_val,
-        x1=1 * 100,
-        y1=top_val,
-        line=dict(
-            color="white",
-        ),
-        fillcolor="red"
-    )
-    fig1.add_annotation(
-        x=0.275686 / 2 * 100,
-        y=0.75,
-        text="Low risk",
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
-    fig1.add_annotation(
-        x=0.53 * 100,
-        y=0.75,
-        text="Medium risk",
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
-    fig1.add_annotation(
-        x=0.9 * 100,
-        y=0.75,
-        text="High risk",
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
     fig1.update_layout(margin=dict(l=0, r=50, t=10, b=10), xaxis={'range': [0, 100]})
 
     # do shap value calculations for basic waterfall plot
-    explainer_patient = shap.TreeExplainer(rfb)
-    shap_values_patient = explainer_patient.shap_values(x_new)
+    explainer = lime.lime_tabular.LimeTabularExplainer(trnX,class_names=['SurgycalMargin-0','SurgycalMargin-1'],feature_names=col,
+                                                   categorical_features=[5,6,7,8,9,10,11,12,13,14,15,16,17], 
+                                                   categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
+    exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=9,num_samples=1000)
+    feature_importance_patient = [v[1] for v in exp.as_list()]
     updated_fnames = x_new.T.reset_index()
     updated_fnames.columns = ['feature', 'value']
-    updated_fnames['shap_original'] = pd.Series(shap_values_patient[0].flatten())
+    updated_fnames['shap_original'] = pd.Series(feature_importance_patient)
     updated_fnames['shap_abs'] = updated_fnames['shap_original'].abs()
     updated_fnames = updated_fnames.sort_values(by=['shap_abs'], ascending=True)
 
@@ -535,7 +518,7 @@ def predict_hd_summary(data_patient):
         name="",
         orientation="h",
         measure=['absolute'] + ['relative']*show_features,
-        base=explainer_patient.expected_value[0],
+        base=feature_importance_patient,
         textposition=plot_data['text_pos'],
         text=plot_data['shap_original'],
         textfont={"color": plot_data['text_col']},
@@ -575,8 +558,8 @@ def predict_hd_summary(data_patient):
             dict(
                 type='line',
                 yref='paper', y0=0, y1=1.02,
-                xref='x', x0=plot_data['shap_original'].sum()+explainer_patient.expected_value,
-                x1=plot_data['shap_original'].sum()+explainer_patient.expected_value,
+                xref='x', x0=plot_data['shap_original'].sum()+rfb.predict_proba,
+                x1=plot_data['shap_original'].sum()+rfb.predict_proba,
                 layer="below",
                 line=dict(
                     color="black",
@@ -589,27 +572,24 @@ def predict_hd_summary(data_patient):
     fig2.add_annotation(
         yref='paper',
         xref='x',
-        x=explainer_patient.expected_value,
+        x=rfb.predict_proba,
         y=-0.12,
-        text="E[f(x)] = {:.2f}".format(explainer_patient.expected_value[0]),
+        text="E[f(x)] = {:.2f}".format(feature_importance_patient),
         showarrow=False,
         font=dict(color="black", size=14)
     )
     fig2.add_annotation(
         yref='paper',
         xref='x',
-        x=plot_data['shap_original'].sum()+explainer_patient.expected_value,
+        x=plot_data['shap_original'].sum()+rfb.predict_proba,
         y=1.075,
-        text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+explainer_patient.expected_value[0]),
+        text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+feature_importance_patient),
         showarrow=False,
         font=dict(color="black", size=14)
     )
 
     return fig1,\
-        f"Based on the patient's profile, the predicted likelihood of heart disease is {text_val}. " \
-        f"This patient is in the {risk_grp} group.",\
-        f"Recommended action(s) for a patient in the {risk_grp} group",\
-        next_action, \
+        f"Based on the patient's profile, the predicted likelihood of a positive surgical is margin {text_val}. ", \
         fig2
 
 
