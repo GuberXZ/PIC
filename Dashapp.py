@@ -1,7 +1,11 @@
 # Standard
+from distutils.log import debug
+import os
 import pandas as pd
 import numpy as np
-import os
+
+#Local modules
+import localmodules.conversor as c
 
 # Dash components
 import dash
@@ -14,8 +18,9 @@ from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import shap
 
-# To import pkl file model objects
+# To import joblib file model objects
 import joblib
+
 
 # Load model and pipeline
 # current_folder = os.path.dirname(__file__)
@@ -27,8 +32,10 @@ import joblib
 # hdpred_model = hd_model_obj[1]
 # hd_pipeline = []
 
-#Random Forest Load
+#Random Forest and Database Load
+file = './zDatabase/XAI - Limpo_dummified_minmax_smote.csv'
 rfb = joblib.load('./zDatabase/randomforests.joblib')
+data = pd.read_csv(file,index_col='surgycal margin',na_values='',sep=',', decimal='.') 
 
 # Start Dashboard
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -47,23 +54,12 @@ app.layout = html.Div([
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([
                 dbc.Col(html.Div([
-                    html.Label('Patient Age (years): '),
+                    html.Label('Patient Age at MRI(years): '),
                     dcc.Input(
                         type="number",
                         debounce=True,
                         value='55',
-                        id='age'
-                    )
-                ]), width={"size": 3}),
-                dbc.Col(html.Div([
-                    html.Label('Sex: '),
-                    dcc.Dropdown(
-                        options=[
-                            {'label': 'Female', 'value': '0'},
-                            {'label': 'Male', 'value': '1'}
-                        ],
-                        value='0',
-                        id='sex_male'
+                        id='Age'
                     )
                 ]), width={"size": 3}),
             ], style={'padding': '10px 25px'}),
@@ -71,66 +67,132 @@ app.layout = html.Div([
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([
                 dbc.Col(html.Div([
-                    html.Label('Blood pressure (mmHg): '),
+                    html.Label('Prostate volume (unit?): '),
                     dcc.Input(
                         type="number",
                         debounce=True,
-                        value='132',
-                        id='resting_bp'
+                        value='45',
+                        id='Prostate_volume'
                     )
                 ]), width={"size": 3}, style={'padding': '10px 10px'}),
                 dbc.Col(html.Div([
-                    html.Label('Maximum heart rate (bpm): '),
+                    html.Label('PSA value at MRI (ng/mL?): '),
                     dcc.Input(
                         type="number",
                         debounce=True,
-                        value='151',
-                        id='maximum_hr'
+                        value='7.4',
+                        id='PSA_value'
                     )
                 ]), width={"size": 3}, style={'padding': '10px 10px'}),
                 dbc.Col(html.Div([
-                    html.Label('Serum cholesterol (mg/L): '),
+                    html.Label('Lesion size (cm?): '),
                     dcc.Input(
                         type="number",
                         debounce=True,
-                        value='247',
-                        id='serum_cholesterol'
+                        value='18',
+                        id='lesion_size'
                     )
                 ]), width={"size": 3}, style={'padding': '10px 10px'}),
                 dbc.Col(html.Div([
-                    html.Label('High fasting blood sugar: '),
+                    html.Label('Lesion PIRADS.V2: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'No', 'value': '1'},
-                            {'label': 'Yes', 'value': '0'}
+                            {'label': 'Intermediate cancer significance', 'value': '3'},
+                            {'label': 'High cancer significance', 'value': '4'},
+                            {'label': 'Very High cancer significance', 'value': '5'}
                         ],
-                        value='1',
-                        id='high_fasting_blood_sugar_no'
+                        value='4',
+                        id='PIRADS_V2'
                     )
                 ]), width={"size": 3}, style={'padding': '10px 10px'}),
             ], style={'padding': '10px 25px'}),
             dbc.Row([
                 dbc.Col(html.Div([
-                    html.Label('Type of chest pain: '),
-                    dcc.Dropdown(
-                        options=[
-                            {'label': 'Asymptomatic', 'value': '0'},
-                            {'label': 'Angina', 'value': '1'},
-                            {'label': 'Non-anginal', 'value': '2'}
-                        ],
-                        value='0',
-                        id='chest_pain_type'
+                    html.Label('Capsular contact length (units?): '),
+                    dcc.Input(
+                        type="number",
+                        debounce=True,
+                        value='12',
+                        id='Capsular_contact_lenght'
                     )
                 ]), width={"size": 3}),
                 dbc.Col(html.Div([
-                    html.Label('Exercise induced angina: '),
+                    html.Label('Smooth capsular bulging: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'No', 'value': '0'},
+                            {'label': 'No', 'value': '0'},#label?
                             {'label': 'Yes', 'value': '1'}
                         ],
                         value='0',
-                        id='exercise_induced_angina_yes'
+                        id='Smooth_capsular_bulging'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('Capsular disruption: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},#label?
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Capsular_disruption'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('Unsharp margin: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},#label?
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Unsharp_margin'
+                    )
+                ]), width={"size": 3}),
+            ], style={'padding': '10px 25px'}),
+            dbc.Row([
+                dbc.Col(html.Div([
+                    html.Label('Irregular contour: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},#label?
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Irregular_contour'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('Black estrition periprostatic fat: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},#label?
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Black_estrition_periprostatic_fat'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('Retoprostatic angle obliteration: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},#label?
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Retoprostatic_angle_obliteration'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('Gleason score: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'Bellow 7', 'value': '0'},
+                            {'label': 'Above 7', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Gleason_score'
                     )
                 ]), width={"size": 3}),
             ], style={'padding': '10px 25px'}),
@@ -138,58 +200,40 @@ app.layout = html.Div([
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([
                 dbc.Col(html.Div([
-                    html.Label('Resting ECG: '),
+                    html.Label('Measurable ECE: '),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No', 'value': '0'},
+                            {'label': 'Yes', 'value': '1'}
+                        ],
+                        value='0',
+                        id='Measurable_ECE'
+                    )
+                ]), width={"size": 3}),
+                dbc.Col(html.Div([
+                    html.Label('ECE in prostatectomy: '),
                     dcc.Dropdown(
                         options=[
                             {'label': 'Normal', 'value': '0'},
                             {'label': 'Not normal', 'value': '1'}
                         ],
                         value='0',
-                        id='resting_ecg_not_normal'
-                    )
-                ]), width={"size": 3}),
-                dbc.Col(html.Div([
-                    html.Label('ST depression: '),
-                    dcc.Input(
-                        type="number",
-                        debounce=True,
-                        value='1',
-                        id='ST_depression_exercise_vs_rest'
-                    )
-                ]), width={"size": 3}),
-                dbc.Col(html.Div([
-                    html.Label('Peak ST slope: '),
-                    dcc.Dropdown(
-                        options=[
-                            {'label': 'Upsloping', 'value': '1'},
-                            {'label': 'Flat or downsloping', 'value': '0'}
-                        ],
-                        value='1',
-                        id='peak_exercise_ST_segment_slope_upsloping'
+                        id='ECE_in_prostatectomy'
                     )
                 ]), width={"size": 3}),
             ], style={'padding': '10px 25px'}),
-            dbc.Row([html.Div("Thallium stress test results",
+            dbc.Row([html.Div("Surgery related metrics",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([
                 dbc.Col(html.Div([
-                    html.Label('Blood flow: '),
+                    html.Label('Rule: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'Normal', 'value': '1'},
-                            {'label': 'Defect', 'value': '0'}
+                            {'label': 'Followed the rule', 'value': '1'},
+                            {'label': 'Did not follow the rule', 'value': '0'}
                         ],
                         value='1',
-                        id='thallium_stress_test_bf_normal'
-                    )
-                ]), width={"size": 3}),
-                dbc.Col(html.Div([
-                    html.Label('Affected vessels: '),
-                    dcc.Input(
-                        type="number",
-                        debounce=True,
-                        value='1',
-                        id='num_affected_major_vessels'
+                        id='regra'
                     )
                 ]), width={"size": 3}),
             ], style={'padding': '10px 25px'}),
@@ -197,7 +241,7 @@ app.layout = html.Div([
         ),
 
         # Right hand column containing the summary information for predicted heart disease risk
-        dbc.Col([html.Div("Predicted heart disease risk",
+        dbc.Col([html.Div("Predicted surgical margin",
                           style={'font-weight': 'bold', 'font-size': 20}),
             dbc.Row(dcc.Graph(
                 id='Metric_1',
@@ -205,7 +249,7 @@ app.layout = html.Div([
                 config={'displayModeBar': False}
             ), style={'marginLeft': 15}),
             dbc.Row([html.Div(id='main_text', style={'font-size': 16, 'padding': '10px 25px'})]),
-            dbc.Row([html.Div("Factors contributing to predicted likelihood of heart disease",
+            dbc.Row([html.Div("Factors contributing to predicted likelihood of surgical margin",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([html.Div(["The figure below indicates the impact (magnitude of increase or decrease in "
                                "log-odds) of factors on the model prediction of the patient's heart disease likelihood."
@@ -243,8 +287,8 @@ app.layout = html.Div([
                                      style={'font-weight': 'bold', 'font-size': 20, 'padding': '0px 0px 20px 0px'}),
                             html.Div('Data source',
                                      style={'font-weight': 'bold', 'font-size': 14}),
-                            html.Div(['A cohort of 303 patients at the Cleveland Clinic were assessed on multiple '
-                                      'characteristics and whether they had heart disease was also recorded. '
+                            html.Div(['A cohort of 121 patients at the Hospital da Luz were assessed on multiple '
+                                      'characteristics and whether the surgical margin was followed was also recorded. '
                                       'In total 45% (n=139) of patients had heart disease.'],
                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
                             html.Div('Model features and cohort summary',
@@ -275,10 +319,10 @@ app.layout = html.Div([
                                 children=[html.Img(src=app.get_asset_url('Cohort_table.png'),
                                                    style={'height': '100%', 'width': '100%'})])]),
                         dbc.Col([
-                            html.Div('Figure 1. SHAP feature importance',
+                            html.Div('Figure 1. Feature importance',
                                      style={'font-weight': 'bold', 'font-size': 20}),
                             html.Div(className='container',
-                                     children=[html.Img(src=app.get_asset_url('SHAP_importance.png'),
+                                     children=[html.Img(src=app.get_asset_url('Feature_Importance.png'),
                                                         style={'height': '90%', 'width': '90%'})])])
                         ], style={'padding': '20px 20px'})),
                     id="collapse",
@@ -309,50 +353,47 @@ def toggle_collapse(n, is_open):
 # Responsive element: create X matrix for input to model estimation
 @app.callback(
     Output('data_patient', 'children'),
-    [Input('age', 'value'),
-     Input('resting_bp', 'value'),
-     Input('serum_cholesterol', 'value'),
-     Input('maximum_hr', 'value'),
-     Input('ST_depression_exercise_vs_rest', 'value'),
-     Input('num_affected_major_vessels', 'value'),
-     Input('sex_male', 'value'),
-     Input('chest_pain_type', 'value'),
-     Input('high_fasting_blood_sugar_no', 'value'),
-     Input('resting_ecg_not_normal', 'value'),
-     Input('exercise_induced_angina_yes', 'value'),
-     Input('peak_exercise_ST_segment_slope_upsloping', 'value'),
-     Input('thallium_stress_test_bf_normal', 'value')
+    [Input('Age', 'value'),
+     Input('Prostate_volume', 'value'),
+     Input('PSA_value', 'value'),
+     Input('lesion_size', 'value'),
+     Input('PIRADS_V2', 'value'),
+     Input('Capsular_contact_lenght', 'value'),
+     Input('Smooth_capsular_bulging', 'value'),
+     Input('Capsular_disruption', 'value'),
+     Input('Unsharp_margin', 'value'),
+     Input('Irregular_contour', 'value'),
+     Input('Black_estrition_periprostatic_fat', 'value'),
+     Input('Retoprostatic_angle_obliteration', 'value'),
+     Input('Gleason_score', 'value'),
+     Input('Measurable_ECE', 'value'),
+     Input('ECE_in_prostatectomy', 'value'),
+     Input('regra', 'value'),
      ]
 )
-def generate_feature_matrix(age, resting_bp, serum_cholesterol, maximum_hr, ST_depression_exercise_vs_rest,
-                            num_affected_major_vessels, sex_male, chest_pain_type, high_fasting_blood_sugar_no,
-                            resting_ecg_not_normal, exercise_induced_angina_yes,
-                            peak_exercise_ST_segment_slope_upsloping, thallium_stress_test_bf_normal):
+def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS_V2,
+                            Capsular_contact_length, Smooth_capsular_bulging, Capsular_disruption, Unsharp_margin,
+                            Irregular_contour, Black_estrition_periprostatic_fat,
+                            Retoprostatic_angle_obliteration, Gleason_score,Measurable_ECE,ECE_in_prostatectomy,regra):
 
     # generate a new X_matrix for use in the predictive models
-    column_names = ['age', 'resting_bp', 'serum_cholesterol', 'maximum_hr', 'ST_depression_exercise_vs_rest',
-                    'num_affected_major_vessels', 'sex_male', 'chest_pain_anginal_pain', 'chest_pain_asymptomatic',
-                    'chest_pain_non_anginal_pain', 'high_fasting_blood_sugar_no', 'resting_ecg_not_normal',
-                    'exercise_induced_angina_yes', 'peak_exercise_ST_segment_slope_upsloping',
-                    'thallium_stress_test_bf_normal']
+    column_names = ['Age.at.MRI','Prostate.volume','PSA.value.at.MRI','Index.lesion.size',
+       'Capsular.contact.lenght_TLC','Smooth.capsular.bulging','Capsular.disruption','Unsharp.margin',
+       'Irregular.contour','Black.estrition.periprostatic.fat','Retoprostatic.angle.obliteration',
+       'Measurable.ECE','ECE.in.prostatectomy.specimen_gold.standard','Gleason.score','regra',
+       'Index.lesion.PIRADS.V2_3','Index.lesion.PIRADS.V2_4','Index.lesion.PIRADS.V2_5']
 
-    # only input that requires additional processing is the chest_pain input
-    chest_pain_anginal_pain = 0
-    chest_pain_asymptomatic = 0
-    chest_pain_non_anginal_pain = 0
-    if chest_pain_type == 0:
-        chest_pain_asymptomatic = 1
-    elif chest_pain_type == 1:
-        chest_pain_anginal_pain = 1
-    elif chest_pain_type == 2:
-        chest_pain_non_anginal_pain = 1
+    val = [Age,Prostate_volume,PSA_value,PIRADS_V2,lesion_size,Capsular_contact_length,
+            Smooth_capsular_bulging,Capsular_disruption,Unsharp_margin,Irregular_contour,
+            Black_estrition_periprostatic_fat,Retoprostatic_angle_obliteration,
+            Measurable_ECE,ECE_in_prostatectomy,Gleason_score,regra]
+    values = [float(v) for v in val]
+    
+    XX = c.dumm(values)
+    XXX = c.minmax(XX,data)
+    XXX.pop(-1)
 
-    values = [age, resting_bp, serum_cholesterol, maximum_hr, ST_depression_exercise_vs_rest,
-              num_affected_major_vessels, sex_male, chest_pain_anginal_pain, chest_pain_asymptomatic,
-              chest_pain_non_anginal_pain, high_fasting_blood_sugar_no, resting_ecg_not_normal,
-              exercise_induced_angina_yes, peak_exercise_ST_segment_slope_upsloping, thallium_stress_test_bf_normal]
-
-    x_patient = pd.DataFrame(data=[values],
+    x_patient = pd.DataFrame(data=[XXX],
                              columns=column_names,
                              index=[0])
 
@@ -467,11 +508,11 @@ def predict_hd_summary(data_patient):
     fig1.update_layout(margin=dict(l=0, r=50, t=10, b=10), xaxis={'range': [0, 100]})
 
     # do shap value calculations for basic waterfall plot
-    explainer_patient = shap.TreeExplainer(hdpred_model)
+    explainer_patient = shap.TreeExplainer(rfb)
     shap_values_patient = explainer_patient.shap_values(x_new)
     updated_fnames = x_new.T.reset_index()
     updated_fnames.columns = ['feature', 'value']
-    updated_fnames['shap_original'] = pd.Series(shap_values_patient[0])
+    updated_fnames['shap_original'] = pd.Series(shap_values_patient[0].flatten())
     updated_fnames['shap_abs'] = updated_fnames['shap_original'].abs()
     updated_fnames = updated_fnames.sort_values(by=['shap_abs'], ascending=True)
 
@@ -494,7 +535,7 @@ def predict_hd_summary(data_patient):
         name="",
         orientation="h",
         measure=['absolute'] + ['relative']*show_features,
-        base=explainer_patient.expected_value,
+        base=explainer_patient.expected_value[0],
         textposition=plot_data['text_pos'],
         text=plot_data['shap_original'],
         textfont={"color": plot_data['text_col']},
@@ -550,7 +591,7 @@ def predict_hd_summary(data_patient):
         xref='x',
         x=explainer_patient.expected_value,
         y=-0.12,
-        text="E[f(x)] = {:.2f}".format(explainer_patient.expected_value),
+        text="E[f(x)] = {:.2f}".format(explainer_patient.expected_value[0]),
         showarrow=False,
         font=dict(color="black", size=14)
     )
@@ -559,7 +600,7 @@ def predict_hd_summary(data_patient):
         xref='x',
         x=plot_data['shap_original'].sum()+explainer_patient.expected_value,
         y=1.075,
-        text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+explainer_patient.expected_value),
+        text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+explainer_patient.expected_value[0]),
         showarrow=False,
         font=dict(color="black", size=14)
     )
@@ -574,4 +615,4 @@ def predict_hd_summary(data_patient):
 
 # Start the dashboard with defined host and port.
 if __name__ == '__main__':
-    app.run_server(debug=False,host='127.0.0.1',port=8000)
+    app.run_server(debug=True,host='127.0.0.1',port=8000)
