@@ -97,9 +97,9 @@ app.layout = html.Div([
                     html.Label('Lesion PIRADS.V2: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'Intermediate cancer significance', 'value': '3'},
-                            {'label': 'High cancer significance', 'value': '4'},
-                            {'label': 'Very High cancer significance', 'value': '5'}
+                            {'label': '3', 'value': '3'},
+                            {'label': '4', 'value': '4'},
+                            {'label': '5', 'value': '5'}
                         ],
                         value='4',
                         id='PIRADS_V2'
@@ -439,7 +439,7 @@ def predict_hd_summary(data_patient):
     fig1.add_trace(go.Bar(
         y=[''],
         x=y_val,
-        marker_color='rgb(112, 128, 144)',
+        marker_color='  ,
         orientation='h',
         width=1,
         text=text_val,
