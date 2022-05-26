@@ -1,5 +1,5 @@
 # Standard
-from distutils.log import debug
+#from distutils.log import debug
 import os
 import pandas as pd
 import numpy as np
@@ -15,8 +15,10 @@ import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
 # For plotting risk indicator and for creating waterfall plot
-import plotly.graph_objs as go
 import lime.lime_tabular
+import plotly.graph_objs as go
+import matplotlib.pyplot as plt
+from plotly.subplots import make_subplots
 
 # To import joblib file model objects
 import joblib
@@ -252,7 +254,7 @@ app.layout = html.Div([
         ], style={'padding': '10px 25px'}
         ),
 
-        # Right hand column containing the summary information for predicted heart disease risk
+        # Right hand column containing the summary information for predicted surgical margin
         dbc.Col([html.Div("Predicted surgical margin",
                           style={'font-weight': 'bold', 'font-size': 20}),
             dbc.Row(dcc.Graph(
@@ -261,24 +263,26 @@ app.layout = html.Div([
                 config={'displayModeBar': False}
             ), style={'marginLeft': 15}),
             dbc.Row([html.Div(id='main_text', style={'font-size': 16, 'padding': '10px 25px'})]),
+            
             dbc.Row([html.Div("Factors contributing to predicted likelihood of surgical margin",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
-            dbc.Row([html.Div(["The figure below indicates the impact (magnitude of increase or decrease in "
-                               "log-odds) of factors on the model prediction of the patient's heart disease likelihood."
-                               " Blue bars indicate a decrease and red bars indicate an increase in heart disease "
-                               "likelihood. The final risk value at the top of the figure is equal to log(p/(1-p)) "
-                               " where p is the predicted likelihood reported above."],
-                              style={'font-size': 16, 'padding': '10px 25px'})]),
-            dbc.Row(dcc.Graph(
-                id='Metric_2',
+            
+            dbc.Row([html.Div(["The figure below indicates the feature importance of for each of the classified " 
+                               "class of factors on the model prediction of the patient's surgical margin likelihood."
+                               " The pie chart on the left represents the most important features for the classification"
+                               "of Surgical Margin as negative and the pie chart on the left for the classification "
+                               "as positive."],
+                              style={'font-size': 16, 'padding': '10px 45px'})]),
+            dbc.Row(dcc.Graph( 
+                id='Graph',
                 config={'displayModeBar': False}
-            ), style={'marginLeft': 15}),
-            dbc.Row([html.Div(id='action_header',
-                              style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
-            dbc.Row(
-                dbc.Col([html.Div(id='recommended_action')], width={"size": 11},
-                        style={'font-size': 16, 'padding': '10px 25px',
-                               'backgroundColor': '#E2E2E2', 'marginLeft': 25})),
+            ), justify="center"),
+            #dbc.Row([html.Div(id='action_header',
+            #                  style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
+            # dbc.Row(
+            #     dbc.Col([html.Div(id='recommended_action')], width={"size": 11},
+            #             style={'font-size': 16, 'padding': '10px 25px',
+            #                    'backgroundColor': '#E2E2E2', 'marginLeft': 25})),
             ],
             style={'padding': '10px 25px'}
         ),
@@ -293,7 +297,7 @@ app.layout = html.Div([
                     color="primary",
                 ),
                 dbc.Collapse(
-                    dbc.Card(dbc.Row([
+                    dbc.Card(dbc.Row([ #Colapsable thingy
                         dbc.Col([
                             html.Div('Predictive model information',
                                      style={'font-weight': 'bold', 'font-size': 20, 'padding': '0px 0px 20px 0px'}),
@@ -310,19 +314,15 @@ app.layout = html.Div([
                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
                             html.Div('Model Training',
                                      style={'font-weight': 'bold', 'font-size': 14}),
-                            html.Div(['The data was split into a training set (65%, n=196) and a test set (35%, '
-                                      'n=107). Using 10-fold cross validation with the training set an initial model '
-                                      'was developed and further refined with hyper-parameter tuning. The final model '
-                                      'achieved an average AUC of 0.91 (+/- 0.11) in the training set and 0.88 in the '
+                            html.Div(['The data was split into a training set (70%, n=113) and a test set (30%, '
+                                      'n=49). The final model '
+                                      'achieved an average AUC of 1.0 in the training set and 0.86 in the '
                                       'test set. Figure 1 to the far right indicates what the model identified as '
-                                      'importance of predictors of heart disease. The more important features are '
+                                      'importance of predictors of the surgical margin. The more important features are '
                                       'towards the top of the figure, which includes characteristics like affected '
-                                      'major vessels, asymptomatic chest pain and if the thallium stress test '
-                                      'indicates normal blood flow.'],
+                                      'PSA value at MRI, Age at MRI, prostate volume and if smooth capsular bulging'
+                                      'can be or not identified.'],
                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
-                            html.Div(['The information provided in this dashboard should not replace the advice or '
-                                      'instruction of your Doctor or Health Care Professional.'],
-                                     style={'font-weight': 'bold', 'font-size': 14}),
                         ]),
                         dbc.Col([
                             html.Div('Table 1. Cohort Table',
@@ -415,19 +415,22 @@ def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS
 @app.callback(
     [Output('Metric_1', 'figure'),
      Output('main_text', 'children'),
-     Output('action_header', 'children'),
-     Output('recommended_action', 'children'),
-     Output('Metric_2', 'figure')],
+     #Output('action_header', 'children'),
+     #Output('recommended_action', 'children'),
+     Output('Graph', 'figure')],
     [Input('data_patient', 'children')]
 )
 def predict_hd_summary(data_patient):
 
     # read in data and predict likelihood of heart disease
     x_new = pd.read_json(data_patient)
-    y_val = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
+    prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
+    prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
+    y_val = [prob_0 if prob_0>prob_1 else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
-
-    # # assign a risk group
+    c = ['negative' if prob_0>prob_1 else 'positive'][0]
+    
+    # assign a risk group
     # if y_val/100 <= 0.275685:
     #     risk_grp = 'low risk'
     # elif y_val/100 <= 0.795583:
@@ -472,7 +475,7 @@ def predict_hd_summary(data_patient):
         line=dict(
             color="white",
         ),
-        fillcolor="green"
+        fillcolor="red"
     )
     fig1.add_shape(
         type="rect",
@@ -485,6 +488,17 @@ def predict_hd_summary(data_patient):
         ),
         fillcolor="orange"
     )
+    fig1.add_shape(
+        type="rect",
+        x0=0.795584 * 100,
+        y0=bot_val,
+        x1=1 * 100,
+        y1=top_val,
+        line=dict(
+            color="white",
+        ),
+        fillcolor="green"
+    )
     fig1.update_layout(margin=dict(l=0, r=50, t=10, b=10), xaxis={'range': [0, 100]})
 
     # do shap value calculations for basic waterfall plot
@@ -492,104 +506,21 @@ def predict_hd_summary(data_patient):
                                                    categorical_features=[5,6,7,8,9,10,11,12,13,14,15,16,17], 
                                                    categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
     exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=9,num_samples=1000)
-    feature_importance_patient = [v[1] for v in exp.as_list()]
-    updated_fnames = x_new.T.reset_index()
-    updated_fnames.columns = ['feature', 'value']
-    updated_fnames['shap_original'] = pd.Series(feature_importance_patient)
-    updated_fnames['shap_abs'] = updated_fnames['shap_original'].abs()
-    updated_fnames = updated_fnames.sort_values(by=['shap_abs'], ascending=True)
+    explist = exp.as_list()
+    feature_importance_patient_pos = [v[1] for v in explist if v[1]>0]
+    feature_importance_patient_neg = [abs(v[1]) for v in explist if v[1]<0]
+    labels_pos = [v[0] for v in explist if v[1]>0]
+    labels_neg = [v[0] for v in explist if v[1]<0]
 
-    # need to collapse those after first 9, so plot always shows 10 bars
-    show_features = 9
-    num_other_features = updated_fnames.shape[0] - show_features
-    col_other_name = f"{num_other_features} other features"
-    f_group = pd.DataFrame(updated_fnames.head(num_other_features).sum()).T
-    f_group['feature'] = col_other_name
-    plot_data = pd.concat([f_group, updated_fnames.tail(show_features)])
-
-    # additional things for plotting
-    plot_range = plot_data['shap_original'].cumsum().max() - plot_data['shap_original'].cumsum().min()
-    plot_data['text_pos'] = np.where(plot_data['shap_original'].abs() > (1/9)*plot_range, "inside", "outside")
-    plot_data['text_col'] = "white"
-    plot_data.loc[(plot_data['text_pos'] == "outside") & (plot_data['shap_original'] < 0), 'text_col'] = "#3283FE"
-    plot_data.loc[(plot_data['text_pos'] == "outside") & (plot_data['shap_original'] > 0), 'text_col'] = "#F6222E"
-
-    fig2 = go.Figure(go.Waterfall(
-        name="",
-        orientation="h",
-        measure=['absolute'] + ['relative']*show_features,
-        base=feature_importance_patient,
-        textposition=plot_data['text_pos'],
-        text=plot_data['shap_original'],
-        textfont={"color": plot_data['text_col']},
-        texttemplate='%{text:+.2f}',
-        y=plot_data['feature'],
-        x=plot_data['shap_original'],
-        connector={"mode": "spanning", "line": {"width": 1, "color": "rgb(102, 102, 102)", "dash": "dot"}},
-        decreasing={"marker": {"color": "#3283FE"}},
-        increasing={"marker": {"color": "#F6222E"}},
-        hoverinfo="skip"
-    ))
-    fig2.update_layout(
-        waterfallgap=0.2,
-        autosize=False,
-        width=800,
-        height=400,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        yaxis=dict(
-            showgrid=True,
-            zeroline=True,
-            showline=True,
-            gridcolor='lightgray'
-        ),
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showline=True,
-            showticklabels=True,
-            linecolor='black',
-            tickcolor='black',
-            ticks='outside',
-            ticklen=5
-        ),
-        margin={'t': 25, 'b': 50},
-        shapes=[
-            dict(
-                type='line',
-                yref='paper', y0=0, y1=1.02,
-                xref='x', x0=plot_data['shap_original'].sum()+rfb.predict_proba,
-                x1=plot_data['shap_original'].sum()+rfb.predict_proba,
-                layer="below",
-                line=dict(
-                    color="black",
-                    width=1,
-                    dash="dot")
-            )
-        ]
-    )
-    fig2.update_yaxes(automargin=True)
-    fig2.add_annotation(
-        yref='paper',
-        xref='x',
-        x=rfb.predict_proba,
-        y=-0.12,
-        text="E[f(x)] = {:.2f}".format(feature_importance_patient),
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
-    fig2.add_annotation(
-        yref='paper',
-        xref='x',
-        x=plot_data['shap_original'].sum()+rfb.predict_proba,
-        y=1.075,
-        text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+feature_importance_patient),
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
+    specs = [[{'type':'domain'}, {'type':'domain'}]]
+    fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgycalMargin-0','SurgycalMargin-1'), specs=specs) # Double pie
+    fig2.add_trace(go.Pie(labels=labels_pos, values=feature_importance_patient_pos,name=''), 1, 1)
+    fig2.add_trace(go.Pie(labels=labels_neg, values=feature_importance_patient_neg,name=''), 1, 2)
+    fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
+    fig2.update(layout_showlegend=False)
 
     return fig1,\
-        f"Based on the patient's profile, the predicted likelihood of a positive surgical is margin {text_val}. ", \
+        f"Based on the patient's profile, the predicted likelihood of a {c} surgical is margin {text_val}. ", \
         fig2
 
 

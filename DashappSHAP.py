@@ -248,7 +248,7 @@ app.layout = html.Div([
                 style={'width': '100%', 'height': 80},
                 config={'displayModeBar': False}
             ), style={'marginLeft': 15}),
-            dbc.Row([html.Div(id='main_text', style={'font-size': 16, 'padding': '10px 25px'})]),
+            dbc.Row([html.Div(id='main_text', style={'font-size': 16})]),
             dbc.Row([html.Div("Factors contributing to predicted likelihood of surgical margin",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([html.Div(["The figure below indicates the impact (magnitude of increase or decrease in "
@@ -615,4 +615,4 @@ def predict_hd_summary(data_patient):
 
 # Start the dashboard with defined host and port.
 if __name__ == '__main__':
-    app.run_server(debug=True,host='127.0.0.1',port=8000)
+    app.run_server(debug=True,host='127.0.0.1',port=8080)
