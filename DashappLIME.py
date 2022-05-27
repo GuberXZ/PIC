@@ -262,7 +262,7 @@ app.layout = html.Div([
                 style={'width': '100%', 'height': 80},
                 config={'displayModeBar': False}
             ), style={'marginLeft': 15}),
-            dbc.Row([html.Div(id='main_text', style={'font-size': 16, 'padding': '10px 25px'})]),
+            dbc.Row([html.Div(id='main_text', style={'font-size': 20, 'padding': '10px 25px'})]),
             
             dbc.Row([html.Div("Factors contributing to predicted likelihood of surgical margin",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
