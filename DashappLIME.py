@@ -16,22 +16,11 @@ from dash.dependencies import Input, Output, State
 # For plotting risk indicator and for creating waterfall plot
 import lime.lime_tabular
 import plotly.graph_objs as go
-import matplotlib.pyplot as plt
 from plotly.subplots import make_subplots
 
 # To import joblib file model objects
 import joblib
 
-
-# Load model and pipeline
-# current_folder = os.path.dirname(__file__)
-# #hd_model_obj = joblib.load(os.path.join(current_folder, 'heart_disease_prediction_model_Jul2020.pkl'))
-
-# normally we would want the pipeline object as well, but in this example transformation is minimal so we will just
-# construct the require format on the fly from data entry. Also means we don't need to rely on PyCaret here
-# object has 2 slots, first is data pipeline, second is the model object
-# hdpred_model = hd_model_obj[1]
-# hd_pipeline = []
 
 #Random Forest and Database Load
 filew = './zDatabase/XAI - Limpo_dummified_smote.csv'
@@ -406,9 +395,7 @@ def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS
     XXX = c.minmax(XX,dataw)
     Y = [XXX[:-1]]
 
-    x_patient = pd.DataFrame(data=Y,
-                             columns=column_names,
-                             index=[0])
+    x_patient = pd.DataFrame(data=Y, columns=column_names, index=[0])
 
     return x_patient.to_json()
 
@@ -507,7 +494,7 @@ def predict_hd_summary(data_patient):
     explainer = lime.lime_tabular.LimeTabularExplainer(trnX,class_names=['SurgycalMargin-0','SurgycalMargin-1'],feature_names=col,
                                                    categorical_features=[5,6,7,8,9,10,11,12,13,14,15,16,17], 
                                                    categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
-    exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=9,num_samples=1000)
+    exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=10,num_samples=1000)
     explist = exp.as_list()
     labels_0 = [v[0] for v in explist if v[1] < 0]
     feature_importance_patient_0 = [abs(v[1]) for v in explist if v[1]<0]
