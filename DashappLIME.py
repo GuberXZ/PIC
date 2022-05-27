@@ -34,9 +34,11 @@ import joblib
 # hd_pipeline = []
 
 #Random Forest and Database Load
-file = './zDatabase/XAI - Limpo_dummified_minmax_smote.csv'
-fileTrain = './zDatabase/XAI - Limpo_dummified_minmax_smote_train.csv'
-rfb = joblib.load('./zDatabase/randomforests.joblib')
+filew = './zDatabase/XAI - Limpo_dummified_smote.csv'
+file = './zDatabase/XAI - Limpo_dummified_smote_minmax.csv'
+fileTrain = './zDatabase/XAI - Limpo_dummified_smote_minmax_train.csv'
+rfb = joblib.load('./zDatabase/randomforestsAPP.joblib')
+dataw = pd.read_csv(filew,index_col='surgycal margin',na_values='',sep=',', decimal='.')
 data = pd.read_csv(file,index_col='surgycal margin',na_values='',sep=',', decimal='.') 
 train: pd.DataFrame = pd.read_csv(fileTrain)
 trnY: np.ndarray = train.pop('surgycal margin').values
@@ -110,9 +112,9 @@ app.layout = html.Div([
                     html.Label('Lesion PIRADS.V2: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'Intermediate cancer significance', 'value': '3'},
-                            {'label': 'High cancer significance', 'value': '4'},
-                            {'label': 'Very High cancer significance', 'value': '5'}
+                            {'label': '3', 'value': '3'},
+                            {'label': '4', 'value': '4'},
+                            {'label': '5', 'value': '5'}
                         ],
                         value='4',
                         id='PIRADS_V2'
@@ -201,8 +203,8 @@ app.layout = html.Div([
                     html.Label('Gleason score: '),
                     dcc.Dropdown(
                         options=[
-                            {'label': 'Bellow 7', 'value': '0'},
-                            {'label': 'Above 7', 'value': '1'}
+                            {'label': 'Below (3+4)', 'value': '0'},
+                            {'label': 'Above (4+3)', 'value': '1'}
                         ],
                         value='0',
                         id='Gleason_score'
@@ -264,7 +266,7 @@ app.layout = html.Div([
             dbc.Row([html.Div(id='main_text', style={'font-size': 20, 'padding': '10px 25px'})]),
             
             dbc.Row([html.Div("Factors contributing to predicted likelihood of surgical margin",
-                              style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
+                              style={'font-weight': 'bold', 'font-size': 18, 'padding': '10px 25px'})]),
             
             dbc.Row([html.Div(["The figure below indicates the feature importance of for each of the classified " 
                                "class of factors on the model prediction of the patient's surgical margin likelihood."
@@ -304,7 +306,7 @@ app.layout = html.Div([
                                      style={'font-weight': 'bold', 'font-size': 14}),
                             html.Div(['A cohort of 121 patients at the Hospital da Luz were assessed on multiple '
                                       'characteristics and whether the surgical margin was followed was also recorded. '
-                                      'In total 45% (n=139) of patients had heart disease.'],
+                                      'In total 28% (n=34) of patients had surgical margin caracterized as 0.'],
                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
                             html.Div('Model features and cohort summary',
                                      style={'font-weight': 'bold', 'font-size': 14}),
@@ -401,10 +403,10 @@ def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS
     values = [float(v) for v in val]
     
     XX = c.dumm(values)
-    XXX = c.minmax(XX,data)
-    XXX.pop(-1)
+    XXX = c.minmax(XX,dataw)
+    Y = [XXX[:-1]]
 
-    x_patient = pd.DataFrame(data=[XXX],
+    x_patient = pd.DataFrame(data=Y,
                              columns=column_names,
                              index=[0])
 
@@ -421,14 +423,15 @@ def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS
 )
 def predict_hd_summary(data_patient):
 
-    # read in data and predict likelihood of heart disease
+    # read in data and predict likelihood of surgical margin
     x_new = pd.read_json(data_patient)
+    print(x_new.to_numpy())
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
-    y_val = [prob_0 if prob_0>prob_1 else prob_1][0]
-    text_val = str(np.round(y_val[0], 1)) + "%"
-    c = ['negative' if prob_0>prob_1 else 'positive'][0]
     
+    y_val = [prob_0 if prob_0 > prob_1 else prob_1][0]
+    text_val = str(np.round(y_val[0], 1)) + "%"
+    clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
     # assign a risk group
     # if y_val/100 <= 0.275685:
     #     risk_grp = 'low risk'
@@ -448,7 +451,7 @@ def predict_hd_summary(data_patient):
 
     # next_action = rg_actions[risk_grp][0]
 
-    # create a single bar plot showing likelihood of heart disease
+    # create a single bar plot showing likelihood of surgical margin
     fig1 = go.Figure()
     fig1.add_trace(go.Bar(
         y=[''],
@@ -498,7 +501,7 @@ def predict_hd_summary(data_patient):
         ),
         fillcolor="green"
     )
-    fig1.update_layout(margin=dict(l=0, r=50, t=10, b=10), xaxis={'range': [0, 100]})
+    fig1.update_layout(margin=dict(l=0, r=50, t=10, b=15), xaxis={'range': [0, 100]})
 
     # do shap value calculations for basic waterfall plot
     explainer = lime.lime_tabular.LimeTabularExplainer(trnX,class_names=['SurgycalMargin-0','SurgycalMargin-1'],feature_names=col,
@@ -506,20 +509,21 @@ def predict_hd_summary(data_patient):
                                                    categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
     exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=9,num_samples=1000)
     explist = exp.as_list()
-    feature_importance_patient_pos = [v[1] for v in explist if v[1]>0]
-    feature_importance_patient_neg = [abs(v[1]) for v in explist if v[1]<0]
-    labels_pos = [v[0] for v in explist if v[1]>0]
-    labels_neg = [v[0] for v in explist if v[1]<0]
+    labels_0 = [v[0] for v in explist if v[1] < 0]
+    feature_importance_patient_0 = [abs(v[1]) for v in explist if v[1]<0]
+    feature_importance_patient_1 = [v[1] for v in explist if v[1]>0]
+    labels_1 = [v[0] for v in explist if v[1]>0]
 
     specs = [[{'type':'domain'}, {'type':'domain'}]]
-    fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgycalMargin-0','SurgycalMargin-1'), specs=specs) # Double pie
-    fig2.add_trace(go.Pie(labels=labels_pos, values=feature_importance_patient_pos,name=''), 1, 1)
-    fig2.add_trace(go.Pie(labels=labels_neg, values=feature_importance_patient_neg,name=''), 1, 2)
+    fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgicalMargin-0','SurgicalMargin-1'), specs=specs) # Double pie
+    fig2.add_trace(go.Pie(labels=labels_0, values=feature_importance_patient_0,scalegroup='one',name=''), 1, 1)
+    fig2.add_trace(go.Pie(labels=labels_1, values=feature_importance_patient_1,scalegroup='one',name=''), 1, 2)
     fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
     fig2.update(layout_showlegend=False)
-
+    print(clazz,text_val,y_val,prob_0,prob_1)
+    
     return fig1,\
-        f"Based on the patient's profile, the predicted likelihood of a {c} surgical is margin {text_val}. ", \
+        f"Based on the patient's profile, the predicted likelihood of a {clazz} surgical margin {text_val}. ", \
         fig2
 
 
