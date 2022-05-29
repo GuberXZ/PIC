@@ -507,7 +507,6 @@ def predict_hd_summary(data_patient):
     fig2.add_trace(go.Pie(labels=labels_1, values=feature_importance_patient_1,scalegroup='one',name=''), 1, 2)
     fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
     fig2.update(layout_showlegend=False)
-    print(clazz,text_val,y_val,prob_0,prob_1)
     
     return fig1,\
         f"Based on the patient's profile, the predicted likelihood of a {clazz} surgical margin {text_val}. ", \
