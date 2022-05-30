@@ -5,7 +5,7 @@ def dumm(X):
     L=np.zeros((19,), dtype=int).tolist()
     PV2=X[3]
     
-    X.pop(3)
+    X = [l for l in X if l !=PV2]
     for i in range(15):#Posição 0 à 14.
         L[i]=X[i]
 
@@ -21,6 +21,7 @@ def dumm(X):
     return L
 
 def minmax(X,data):
+    L=np.zeros((19,), dtype=int).tolist()
     for i in range(5):
         min = data.min(axis=0)[i]
         max = data.max(axis=0)[i]
@@ -30,8 +31,10 @@ def minmax(X,data):
             max=X[i]
         std = (X[i] - min) / (max - min)
         #X_scaled = std * (max - min) + min
-        X[i] = std
-    return X
+        L[i] = std
+    for i in range(5,19):
+        L[i]=X[i]
+    return L 
 
 def vectorizer(X):
     for i in range(len(X)):
