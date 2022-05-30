@@ -439,7 +439,7 @@ def predict_hd_summary(data_patient):
     fig1.add_trace(go.Bar(
         y=[''],
         x=y_val,
-        marker_color='  ,
+        marker_color='aliceblue',
         orientation='h',
         width=1,
         text=text_val,
