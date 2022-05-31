@@ -490,7 +490,7 @@ def predict_hd_summary(data_patient):
     )
     fig1.update_layout(margin=dict(l=0, r=50, t=10, b=15), xaxis={'range': [0, 100]})
 
-    # do shap value calculations for basic waterfall plot
+    # do lime value calculations for plot
     explainer = lime.lime_tabular.LimeTabularExplainer(trnX,class_names=['SurgycalMargin-0','SurgycalMargin-1'],feature_names=col,
                                                    categorical_features=[5,6,7,8,9,10,11,12,13,14,15,16,17], 
                                                    categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
