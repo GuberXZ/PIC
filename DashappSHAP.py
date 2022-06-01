@@ -10,6 +10,8 @@ import localmodules.conversor as c
 # Dash components
 import dash
 from dash import dcc,html
+import dash_bootstrap_components as dbc
+
 from dash.dependencies import Input, Output, State
 
 # For plotting risk indicator and for creating waterfall plot
@@ -31,9 +33,17 @@ import joblib
 # hd_pipeline = []
 
 #Random Forest and Database Load
-file = './zDatabase/XAI - Limpo_dummified_minmax_smote.csv'
-rfb = joblib.load('./zDatabase/randomforests.joblib')
+filew = './zDatabase/XAI - Limpo_dummified_smote.csv'
+file = './zDatabase/XAI - Limpo_dummified_smote_minmax.csv'
+fileTrain = './zDatabase/XAI - Limpo_dummified_smote_minmax_train.csv'
+rfb = joblib.load('./zDatabase/randomforestsAPP.joblib')
+dataw = pd.read_csv(filew,index_col='surgycal margin',na_values='',sep=',', decimal='.')
 data = pd.read_csv(file,index_col='surgycal margin',na_values='',sep=',', decimal='.') 
+train: pd.DataFrame = pd.read_csv(fileTrain)
+trnY: np.ndarray = train.pop('surgycal margin').values
+trnX: np.ndarray = train.values
+labels = pd.unique(trnY)
+labels.sort()
 
 # Start Dashboard
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -388,12 +398,10 @@ def generate_feature_matrix(Age, Prostate_volume, PSA_value, lesion_size, PIRADS
     values = [float(v) for v in val]
     
     XX = c.dumm(values)
-    XXX = c.minmax(XX,data)
-    XXX.pop(-1)
+    XXX = c.minmax(XX,dataw)
+    Y = [XXX[:-1]]
 
-    x_patient = pd.DataFrame(data=[XXX],
-                             columns=column_names,
-                             index=[0])
+    x_patient = pd.DataFrame(data=Y, columns=column_names, index=[0])
 
     return x_patient.to_json()
 
@@ -410,24 +418,23 @@ def predict_hd_summary(data_patient):
 
     # read in data and predict likelihood of heart disease
     x_new = pd.read_json(data_patient)
+    print(x_new.to_numpy())
     y_val = rfb.predict_proba(x_new)[:, 0]*100
     text_val = str(np.round(y_val[0], 1)) + "%"
 
-    # assign a risk group
-    if y_val/100 <= 0.275685:
-        risk_grp = 'low risk'
-    elif y_val/100 <= 0.795583:
-        risk_grp = 'medium risk'
+    # classify
+    prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
+    prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
+    
+    if prob_0 <= prob_1:
+        risk_grp = 'surgycal margin 0'
     else:
-        risk_grp = 'high risk'
+        risk_grp = 'surgycal margin 1'
 
     # assign an action related to the risk group
-    rg_actions = {'low risk': ['Discuss with patient any single large risk factors they may have, and otherwise '
+    rg_actions = {'surgycal margin 0': ['Discuss with patient any single large risk factors they may have, and otherwise '
                                'continue supporting healthy lifestyle habits. Follow-up in 12 months'],
-                  'medium risk': ['Discuss lifestyle with patient and identify changes to reduce risk. '
-                                  'Schedule follow-up with patient in 3 months on how changes are progressing. '
-                                  'Recommend performing simple tests to assess positive impact of changes.'],
-                  'high risk': ['Immediate follow-up with patient to discuss next steps including additional '
+                  'surgycal margin 1': ['Immediate follow-up with patient to discuss next steps including additional '
                                 'follow-up tests, lifestyle changes and medications.']}
 
     next_action = rg_actions[risk_grp][0]
@@ -437,7 +444,7 @@ def predict_hd_summary(data_patient):
     fig1.add_trace(go.Bar(
         y=[''],
         x=y_val,
-        marker_color='  ,
+        marker_color='rgb(112, 128, 144)',
         orientation='h',
         width=1,
         text=text_val,
@@ -453,53 +460,37 @@ def predict_hd_summary(data_patient):
         type="rect",
         x0=0,
         y0=bot_val,
-        x1=0.275686 * 100,
-        y1=top_val,
-        line=dict(
-            color="white",
-        ),
-        fillcolor="green"
-    )
-    fig1.add_shape(
-        type="rect",
-        x0=0.275686 * 100,
-        y0=bot_val,
-        x1=0.795584 * 100,
-        y1=top_val,
-        line=dict(
-            color="white",
-        ),
-        fillcolor="orange"
-    )
-    fig1.add_shape(
-        type="rect",
-        x0=0.795584 * 100,
-        y0=bot_val,
-        x1=1 * 100,
+        x1=0.5 * 100,
         y1=top_val,
         line=dict(
             color="white",
         ),
         fillcolor="red"
     )
+    
+    fig1.add_shape(
+        type="rect",
+        x0=0.5 * 100,
+        y0=bot_val,
+        x1=1 * 100,
+        y1=top_val,
+        line=dict(
+            color="white",
+        ),
+        fillcolor="green"
+    )
     fig1.add_annotation(
         x=0.275686 / 2 * 100,
         y=0.75,
-        text="Low risk",
+        text="surgycal margin 0",
         showarrow=False,
         font=dict(color="black", size=14)
     )
-    fig1.add_annotation(
-        x=0.53 * 100,
-        y=0.75,
-        text="Medium risk",
-        showarrow=False,
-        font=dict(color="black", size=14)
-    )
+
     fig1.add_annotation(
         x=0.9 * 100,
         y=0.75,
-        text="High risk",
+        text="surgycal margin 1",
         showarrow=False,
         font=dict(color="black", size=14)
     )
@@ -584,11 +575,12 @@ def predict_hd_summary(data_patient):
         ]
     )
     fig2.update_yaxes(automargin=True)
+    fig2.update_xaxes(automargin=True)
     fig2.add_annotation(
         yref='paper',
         xref='x',
         x=explainer_patient.expected_value,
-        y=-0.12,
+        y=0,
         text="E[f(x)] = {:.2f}".format(explainer_patient.expected_value[0]),
         showarrow=False,
         font=dict(color="black", size=14)
@@ -597,13 +589,14 @@ def predict_hd_summary(data_patient):
         yref='paper',
         xref='x',
         x=plot_data['shap_original'].sum()+explainer_patient.expected_value,
-        y=1.075,
+        y=1,
         text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+explainer_patient.expected_value[0]),
-        showarrow=False,
+        showarrow=True,
         font=dict(color="black", size=14)
     )
 
     return fig1,\
+        f' '\
         f"Based on the patient's profile, the predicted likelihood of heart disease is {text_val}. " \
         f"This patient is in the {risk_grp} group.",\
         f"Recommended action(s) for a patient in the {risk_grp} group",\
