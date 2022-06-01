@@ -412,10 +412,10 @@ def predict_hd_summary(data_patient):
 
     # read in data and predict likelihood of surgical margin
     x_new = pd.read_json(data_patient)
-    print(x_new.to_numpy())
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
-    
+    print(prob_0,prob_1)
+
     y_val = [prob_0 if prob_0 > prob_1 else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
     clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
@@ -502,9 +502,9 @@ def predict_hd_summary(data_patient):
     labels_1 = [v[0] for v in explist if v[1]>0]
 
     specs = [[{'type':'domain'}, {'type':'domain'}]]
-    fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgicalMargin-0','SurgicalMargin-1'), specs=specs) # Double pie
-    fig2.add_trace(go.Pie(labels=labels_0, values=feature_importance_patient_0,scalegroup='one',name=''), 1, 1)
-    fig2.add_trace(go.Pie(labels=labels_1, values=feature_importance_patient_1,scalegroup='one',name=''), 1, 2)
+    fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgicalMargin-0','SurgicalMargin-1')) # Double pie
+    fig2.add_trace(go.Pie(labels=labels_0, values=feature_importance_patient_0,domain={'x': [0.0, prob_0[0]/100], 'y': [0, 1]},name=''), 1, 1)
+    fig2.add_trace(go.Pie(labels=labels_1, values=feature_importance_patient_1,domain={'x': [0.0, prob_1[0]/100], 'y': [0, 1]},name=''), 1, 2)
     fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
     fig2.update(layout_showlegend=False)
     
