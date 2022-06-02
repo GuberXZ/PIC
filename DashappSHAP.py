@@ -494,7 +494,7 @@ def predict_hd_summary(data_patient):
         showarrow=False,
         font=dict(color="black", size=14)
     )
-    fig1.update_layout(margin=dict(l=0, r=50, t=10, b=10), xaxis={'range': [0, 100]})
+    fig1.update_layout(margin=dict(l=0, r=50, t=10, b=15), xaxis={'range': [0, 100]})
 
     # do shap value calculations for basic waterfall plot
     explainer_patient = shap.TreeExplainer(rfb)

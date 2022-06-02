@@ -1,6 +1,5 @@
 # Standard
 #from distutils.log import debug
-import os
 import pandas as pd
 import numpy as np
 
@@ -9,7 +8,7 @@ import localmodules.conversor as c
 
 # Dash components
 import dash
-from dash import html,dcc
+from dash import dcc,html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
@@ -43,6 +42,7 @@ col = ['Age.at.MRI','Prostate.volume','PSA.value.at.MRI','Index.lesion.size',
 
 # Start Dashboard
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+server = app.server
 
 # Layout
 app.layout = html.Div([
@@ -167,7 +167,7 @@ app.layout = html.Div([
                     )
                 ]), width={"size": 3}),
                 dbc.Col(html.Div([
-                    html.Label('Black estrition periprostatic fat: '),
+                    html.Label('Black restriction periprostatic fat: '),
                     dcc.Dropdown(
                         options=[
                             {'label': 'No', 'value': '0'},#label?
@@ -200,7 +200,7 @@ app.layout = html.Div([
                     )
                 ]), width={"size": 3}),
             ], style={'padding': '10px 25px'}),
-            dbc.Row([html.Div("ECG results",
+            dbc.Row([html.Div("ECE results",
                               style={'font-weight': 'bold', 'font-size': 16, 'padding': '10px 25px'})]),
             dbc.Row([
                 dbc.Col(html.Div([
@@ -278,7 +278,8 @@ app.layout = html.Div([
         ),
     ]),
     dbc.Row(
-        html.Div([
+        html.Div(
+            [
                 dbc.Button(
                     "Predictive model information",
                     id="collapse-button",
@@ -328,7 +329,8 @@ app.layout = html.Div([
                         ], style={'padding': '20px 20px'})),
                     id="collapse",
                 ),
-            ]),
+            ]
+        ),
         style={'padding': '10px 25px',
                'position': 'fixed',
                'bottom': '0'},
@@ -410,13 +412,14 @@ def predict_hd_summary(data_patient):
 
     # read in data and predict likelihood of surgical margin
     x_new = pd.read_json(data_patient)
+    print(x_new.to_numpy())
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
-    print(prob_0,prob_1)
-
+    
     y_val = [prob_0 if prob_0 > prob_1 else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
     clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
+    
     # assign a risk group
     # if y_val/100 <= 0.275685:
     #     risk_grp = 'low risk'
@@ -488,16 +491,16 @@ def predict_hd_summary(data_patient):
     )
     fig1.update_layout(margin=dict(l=0, r=50, t=10, b=15), xaxis={'range': [0, 100]})
 
-    # do lime value calculations for plot
+    # do shap value calculations for basic waterfall plot
     explainer = lime.lime_tabular.LimeTabularExplainer(trnX,class_names=['SurgycalMargin-0','SurgycalMargin-1'],feature_names=col,
                                                    categorical_features=[5,6,7,8,9,10,11,12,13,14,15,16,17], 
                                                    categorical_names=[col[i] for i in range(5,18)],kernel_width=3,verbose=True)
-    exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=12,num_samples=1000)
+    exp = explainer.explain_instance(x_new.values.flatten(),rfb.predict_proba,num_features=10,num_samples=1000)
     explist = exp.as_list()
     labels_0 = [v[0] for v in explist if v[1] < 0]
-    feature_importance_patient_0 = [abs(v[1]) for v in explist if v[1] < 0]
-    feature_importance_patient_1 = [v[1] for v in explist if v[1] > 0]
-    labels_1 = [v[0] for v in explist if v[1] > 0]
+    feature_importance_patient_0 = [abs(v[1]) for v in explist if v[1]<0]
+    feature_importance_patient_1 = [v[1] for v in explist if v[1]>0]
+    labels_1 = [v[0] for v in explist if v[1]>0]
 
     specs = [[{'type':'domain'}, {'type':'domain'}]]
     fig2 = make_subplots(rows=1, cols=2,subplot_titles=('SurgicalMargin-0','SurgicalMargin-1'), specs=specs) # Double pie
@@ -506,19 +509,6 @@ def predict_hd_summary(data_patient):
     fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
     fig2.update(layout_showlegend=False)
 
-    # trace_0 = go.Pie(labels=labels_0,values=feature_importance_patient_0,domain={'x': [0.0, np.round(y_val[0], 1)/100], 'y': [0, 1]},name='')
-    # trace_1 = go.Pie(labels=labels_1,values=feature_importance_patient_1,domain={'x': [np.round(y_val[0], 1)/100, 1], 'y': [0, 1]},name='')
-    # fig2 = go.Figure(data=[trace_0,trace_1])
-    # fig2.update_traces(hole=.2, hoverinfo="label+percent+name")
-    # fig2.update(layout_showlegend=False)
-    # fig2.update_layout(
-    # title={
-    #     'text': 'SurgicalMargin-0                                        SurgicalMargin-1',
-    #     'y':0.85,
-    #     'x':0.58,
-    #     'xanchor': 'center',
-    #     'yanchor': 'top'})
-
     return fig1,\
         f"Based on the patient's profile, the predicted likelihood of a {clazz} surgical margin {text_val}. ", \
         fig2
@@ -526,4 +516,4 @@ def predict_hd_summary(data_patient):
 
 # Start the dashboard with defined host and port.
 if __name__ == '__main__':
-    app.run_server(debug=True,host='127.0.0.1',port=8000)
+    app.run_server(debug=True)
