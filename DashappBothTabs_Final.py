@@ -265,7 +265,7 @@ app.layout = html.Div([
                     color="primary",
                 ),
                 dbc.Collapse(
-                    dbc.Card(dbc.Row([ #Colapsable thingy
+                    dbc.Card(dbc.Row([ #Colapsable details
                         dbc.Col([
                             html.Div('Predictive model information',
                                      style={'font-weight': 'bold', 'font-size': 20, 'padding': '0px 0px 20px 0px'}),
@@ -284,26 +284,48 @@ app.layout = html.Div([
                                      style={'font-weight': 'bold', 'font-size': 14}),
                             html.Div(['The data was split into a training set (70%, n=113) and a test set (30%, '
                                       'n=49). The final model '
-                                      'achieved an average AUC of 1.0 in the training set and 0.86 in the '
-                                      'test set. Figure 1 to the far right indicates what the model identified as '
+                                      'achieved an average AUC of 1.0 in the training set and 0.86 in the test set'
+                                      'Figure 2 to the far right indicates what the model identified as '
                                       'importance of predictors of the surgical margin. The more important features are '
                                       'towards the top of the figure, which includes characteristics like affected '
                                       'PSA value at MRI, Age at MRI, prostate volume and if smooth capsular bulging'
-                                      'can be or not identified.'],
+                                      'can be or not identified.'
+                                      ],
                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
+                            
                         ]),
                         dbc.Col([
+                            html.Div('Model Performance',
+                                     style={'font-weight': 'bold', 'font-size': 14}),
+                            html.Div(['Figure 1 contains the model performance, according to the '
+                                      '4 metrics used - accuracy, recall, specificity and precision - '
+                                      'and the model confusion matrix. '
+                                      'Figure 3 contains the ROC chart, from which we selected the threshold '
+                                      'of classification: if a patient has more than 40% probability of '
+                                      'having positive surgical margin (1), then they are classified as positive. '
+                                      ],
+                                      style={'font-size': 14, 'padding': '0px 0px 20px 0px'}),
                             html.Div('Table 1. Cohort Table',
-                                     style={'font-weight': 'bold', 'font-size': 20, 'textAlign': 'middle'}),
+                                     style={'font-weight': 'bold', 'font-size': 14, 'textAlign': 'middle'}),
                             html.Div(className='container',
                                 children=[html.Img(src=app.get_asset_url('Cohort_table.png'),
-                                                   style={'height': '100%', 'width': '100%'})])]),
+                                                   style={'height': '100%', 'width': '100%'})])
+                            ]),
+                            
                         dbc.Col([
-                            html.Div('Figure 1. Feature importance',
-                                     style={'font-weight': 'bold', 'font-size': 20}),
+                            html.Div('Figure 1. Model Performance',
+                                     style={'font-weight': 'bold', 'font-size': 14, 'textAlign': 'middle'}),
+                            html.Div(className='container',
+                                     children=[html.Img(src=app.get_asset_url('Finalmodel_Performance.png'),
+                                                        style={'height': '90%', 'width': '90%'}),
+                                                html.Img(src=app.get_asset_url('Finalmodel_ROC_chart.png'),
+                                                        style={'height': '60%', 'width': '60%'})]),
+                            html.Div('Figure 2. Feature importance',
+                                     style={'font-weight': 'bold', 'font-size': 14}),
                             html.Div(className='container',
                                      children=[html.Img(src=app.get_asset_url('Feature_Importance.png'),
-                                                        style={'height': '90%', 'width': '90%'})])])
+                                                        style={'height': '90%', 'width': '90%'})]),
+                            ])
                         ], style={'padding': '20px 20px'})),
                     id="collapse",
                 ),
@@ -391,7 +413,7 @@ def predict_lime_summary(data_patient):
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
     
-    y_val = [prob_0 if prob_0 > prob_1 else prob_1][0]
+    y_val = [prob_0 if (prob_0 < 0.4 and prob_0 < prob_1) else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
     clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
 
@@ -485,7 +507,7 @@ def predict_shap_summary(data_patient):
     y_val = rfb.predict_proba(x_new)[:, 1]*100
     text_val = str(np.round(y_val[0], 1)) + "%"
     
-    if y_val <= 50:
+    if y_val <= 40:
         risk_grp = 'surgycal margin 0'
     else:
         risk_grp = 'surgycal margin 1'
@@ -519,7 +541,7 @@ def predict_shap_summary(data_patient):
         type="rect",
         x0=0,
         y0=bot_val,
-        x1=0.5 * 100,
+        x1=0.4 * 100,
         y1=top_val,
         line=dict(
             color="white",
@@ -529,7 +551,7 @@ def predict_shap_summary(data_patient):
     
     fig1.add_shape(
         type="rect",
-        x0=0.5 * 100,
+        x0=0.4 * 100,
         y0=bot_val,
         x1=1 * 100,
         y1=top_val,
@@ -539,7 +561,7 @@ def predict_shap_summary(data_patient):
         fillcolor="#3283FE"
     )
     fig1.add_annotation(
-        x=0.5 / 2 * 100,
+        x=0.4 / 2 * 100,
         y=0.75,
         text="Surgical Margin 0",
         showarrow=False,
@@ -547,7 +569,7 @@ def predict_shap_summary(data_patient):
     )
 
     fig1.add_annotation(
-        x=0.75 * 100,
+        x=0.7 * 100,
         y=0.75,
         text="Surgical Margin 1",
         showarrow=False,
