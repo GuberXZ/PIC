@@ -413,7 +413,7 @@ def predict_lime_summary(data_patient):
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
     
-    y_val = [prob_0 if prob_0 < prob_1 else prob_1][0]
+    y_val = [prob_0 if prob_0 > prob_1 else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
     clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
 
@@ -579,7 +579,8 @@ def predict_shap_summary(data_patient):
 
     # do shap value calculations for basic waterfall plot
     explainer_patient = shap.TreeExplainer(rfb)
-    shap_values_patient = explainer_patient.shap_values(x_new)
+    sp_values_patient = explainer_patient.shap_values(x_new)
+    shap_values_patient = [sp_values_patient[0].round(3),sp_values_patient[1].round(3)]
     updated_fnames = x_new.T.reset_index()
     updated_fnames.columns = ['feature', 'value']
     updated_fnames['shap_original'] = pd.Series(shap_values_patient[0].flatten())
@@ -591,6 +592,7 @@ def predict_shap_summary(data_patient):
     num_other_features = updated_fnames.shape[0] - show_features
     col_other_name = f"{num_other_features} other features"
     f_group = pd.DataFrame(updated_fnames.head(num_other_features).sum()).T
+    f_group.round({'shap_original':3})
     f_group['feature'] = col_other_name
     plot_data = pd.concat([f_group, updated_fnames.tail(show_features)])
 
