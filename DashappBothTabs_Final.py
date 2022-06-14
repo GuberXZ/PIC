@@ -413,7 +413,7 @@ def predict_lime_summary(data_patient):
     prob_0 = rfb.predict_proba(x_new.to_numpy())[:, 0]*100
     prob_1 = rfb.predict_proba(x_new.to_numpy())[:, 1]*100
     
-    y_val = [prob_0 if (prob_0 < 0.4 and prob_0 < prob_1) else prob_1][0]
+    y_val = [prob_0 if prob_0 < prob_1 else prob_1][0]
     text_val = str(np.round(y_val[0], 1)) + "%"
     clazz = ['negative' if prob_0 > prob_1 else 'positive'][0]
 
