@@ -3,6 +3,7 @@
 import os
 import pandas as pd
 import numpy as np
+from regex import P
 
 #Local modules
 import localmodules.conversor as c
@@ -506,19 +507,6 @@ def predict_shap_summary(data_patient):
     x_new = pd.read_json(data_patient)
     y_val = rfb.predict_proba(x_new)[:, 1]*100
     text_val = str(np.round(y_val[0], 1)) + "%"
-    
-    if y_val <= 40:
-        risk_grp = 'surgycal margin 0'
-    else:
-        risk_grp = 'surgycal margin 1'
-
-    # # assign an action related to the risk group
-    # rg_actions = {'surgycal margin 0': ['Discuss with patient any single large risk factors they may have, and otherwise '
-    #                            'continue supporting healthy lifestyle habits. Follow-up in 12 months'],
-    #               'surgycal margin 1': ['Immediate follow-up with patient to discuss next steps including additional '
-    #                             'follow-up tests, lifestyle changes and medications.']}
-
-    # next_action = rg_actions[risk_grp][0]
 
     # create a single bar plot showing likelihood of heart disease
     fig1 = go.Figure()
@@ -592,7 +580,6 @@ def predict_shap_summary(data_patient):
     num_other_features = updated_fnames.shape[0] - show_features
     col_other_name = f"{num_other_features} other features"
     f_group = pd.DataFrame(updated_fnames.head(num_other_features).sum()).T
-    f_group.round({'shap_original':3})
     f_group['feature'] = col_other_name
     plot_data = pd.concat([f_group, updated_fnames.tail(show_features)])
 
@@ -659,24 +646,6 @@ def predict_shap_summary(data_patient):
     )
     fig2.update_yaxes(automargin=True)
     fig2.update_xaxes(automargin=True)
-    # fig2.add_annotation(
-    #     yref='paper',
-    #     xref='x',
-    #     x=explainer_patient.expected_value,
-    #     y=0,
-    #     text="E[f(x)] = {:.2f}".format(explainer_patient.expected_value[0]),
-    #     showarrow=False,
-    #     font=dict(color="black", size=14)
-    # )
-    # fig2.add_annotation(
-    #     yref='paper',
-    #     xref='x',
-    #     x=plot_data['shap_original'].sum()+explainer_patient.expected_value,
-    #     y=1,
-    #     text="f(x) = {:.2f}".format(plot_data['shap_original'].sum()+explainer_patient.expected_value[0]),
-    #     showarrow=True,
-    #     font=dict(color="black", size=14)
-    # )
 
     return fig1,\
         f"Based on the patient's profile, the predicted likelihood of a positive surgical margin is {text_val}. ", \
@@ -690,7 +659,6 @@ def predict_shap_summary(data_patient):
 
 def render_content(tab,data_patient):
     if tab == 'tab-1':
-        prediction_lime = predict_lime_summary(data_patient)
         return html.Div([
             html.H3('LIME Explanation'),
             dbc.Row(dcc.Graph(
@@ -713,11 +681,9 @@ def render_content(tab,data_patient):
                 id='Graph_LIME',
                 config={'displayModeBar': False}
             ), justify="center"),
-        ])#,\
-        #prediction_lime
+        ])
         
     elif tab == 'tab-2':
-        prediction_shap = predict_shap_summary(data_patient)
         return html.Div([
             html.H3('SHAP Explanation'),
             dbc.Row(dcc.Graph(
@@ -740,8 +706,8 @@ def render_content(tab,data_patient):
                 id='Graph_SHAP',
                 config={'displayModeBar': False}
             ), justify="center"),     
-        ])#,\
-        #prediction_shap
+        ])
+
 # Start the dashboard with defined host and port.
 if __name__ == '__main__':
     app.run_server(debug=True,host='127.0.0.1',port=8000)
