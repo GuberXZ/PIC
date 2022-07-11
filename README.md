@@ -43,4 +43,4 @@ The initial evaluation of the dada preparation techniques were done by evalutati
 
 | Techniques | NaiveBayes    | KNN|Random Forest|Neural Networks|Gradient Boosting       |NeuralNetworks - BalancedBaggingClassifier|
 |----------- |---------------|--------------|--------------|--------------|--------------|--------------|
-| Accuracy   | 0.69          | 0.92          |0.88          |0.90          |0.77         |0.69|
+| Accuracy   | 0.69          | 0.82          |0.90         |0.67          |0.77         |0.69|
