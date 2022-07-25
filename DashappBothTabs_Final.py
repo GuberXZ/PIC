@@ -3,7 +3,7 @@
 import os
 import pandas as pd
 import numpy as np
-from regex import P
+#from regex import P
 
 #Local modules
 import localmodules.conversor as c
@@ -29,7 +29,7 @@ import joblib
 filew = './zDatabase/XAI - Limpo_dummified_smote.csv'
 file = './zDatabase/XAI - Limpo_dummified_smote_minmax.csv'
 fileTrain = './zDatabase/XAI - Limpo_dummified_smote_minmax_train.csv'
-rfb = joblib.load('./zDatabase/randomforestsAPP.joblib')
+rfb = joblib.load('./zDatabase/rfb')
 dataw = pd.read_csv(filew,index_col='surgycal margin',na_values='',sep=',', decimal='.')
 data = pd.read_csv(file,index_col='surgycal margin',na_values='',sep=',', decimal='.') 
 train: pd.DataFrame = pd.read_csv(fileTrain)
